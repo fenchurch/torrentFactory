@@ -1,0 +1,5 @@
+#!/bin/bash
+sudo -s
+nas=/mnt/nas
+umount -fl $nas
+service autofs restart 

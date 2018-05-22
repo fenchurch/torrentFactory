@@ -1,0 +1,34 @@
+#!/bin/bash
+__scriptVersion=1.0
+__scriptPID=$$
+__scriptPath="$(dirname "$0")"
+__scriptFile="$(basename "$0")"
+
+# Function ========================================================   
+#           Name:  
+#         Author:  Rusty Gibbs 
+#       Homepage:  http://www.wickedidol.com
+#            Git:  https://github.com/fenchurch/movieDownloads.git
+#    Description:  Tag movies
+#        Created:  2018-05-20
+#       Modified:  2018-05-20
+# ================================================================= 
+name="$(basename "$1")"
+name="${name%.*}"
+ext="${input##*.}"
+
+whitespace(){
+    local r="$@"
+    r="${r//[\.\_\(]/ }"
+    r="${r//\ -\ / }"
+    echo "${r%"${r##*[![:space:] ]}"}"
+}
+
+
+echo $name
+filmRenameRegex='(^.*)[\(]([1-2]{1}[0-9]{3})[\)]*.*$'
+if [[ "$name" =~ "$filmRenameRegex" ]]; then
+    echo $match
+    title="${BASH_REMATCH[1]}"
+    echo $title
+fi

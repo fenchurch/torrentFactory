@@ -1,0 +1,17 @@
+#!/bin/bash
+move_tv(){
+    storage="$1"
+    file="$(basename "$2")"
+    if [[ "$file" =~ (^.+)\ \-\ S([0-9][0-9])E([0-9][0-9]).*$ ]]; then
+        path="$storage/${BASH_REMATCH[1]}/Season ${BASH_REMATCH[2]#0*}"
+        if [ ! -d "$path" ]; then
+            mkdir -p "$path"
+            chmod 0777 "$path/.."
+        fi
+        chmod -R 0777 "$2"
+        log "Moving $2 to $path"
+        log $(cp -vf "$2" "$path" 2>&1 && rm "$2")
+        [ $? -eq 0 ] && echo $path/$file || exit 1
+    fi
+}
+
