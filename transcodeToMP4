@@ -1,0 +1,66 @@
+#!/bin/bash
+
+__scriptVersion=1.0
+__scriptPID=$$
+__scriptPath="$(cd "$(realpath "$(dirname "$0")")"; pwd -P )"
+__scriptFile="$(basename "$0")"
+
+# Function ===================================================================== 
+#           Name:  transcodeToMP4
+#         Author:  Rusty Gibbs 
+#       Homepage:  http://www.wickedidol.com
+#            Git:  https://github.com/fenchurch/torrentFactory.git
+#        Created:  2018-05-22
+#       Modified:  2018-05-22
+# ==============================================================================
+usage="transcodeToMP4 
+    -v|video 'videoCodec'
+    -a|audio 'audioCodec'
+'ffmpeg -codecs' for more info on codecs
+"
+# Defaults =================================================================={{{
+codecVideo=h264
+codecAudio=aac
+# ===========================================================================}}}
+
+shopt -s expand_aliases
+alias mediaInfo="ffprobe -v error -hide_banner \
+    -show_entries stream=codec_name \
+    -of default=noprint_wrappers=1:nokey=1 \
+    -select_streams"
+
+main(){
+    filename="${@%.*}"
+    extension="${@##*.}"
+    a="$codecAudio"
+    v="$codecVideo"
+    [[ `mediaInfo a:0 "$@"` == "$a" ]] && a=copy;
+    [[ `mediaInfo v:0 "$@"` == "$v" ]] && v=copy;
+    if [[ $extension != mp4 || $a != copy || $v != copy ]]; then
+        echo "Beginning conversion of $@" >&2
+        [[ "$@" == "$filename.mp4" ]] && filename+="-converted"
+        ffmpeg -y -i "$@" -c:v $v -c:a $a -strict -2 "$filename.mp4"
+        [ $? -gt 0 ] && echo "Error converting $@" >&2 && return 4
+        echo "$filename.mp4"
+        rm "$@"
+    else
+        echo "Conversion not needed for $@" >&2
+        echo "$@"
+    fi
+}
+
+
+
+while true; do
+    case "$1" in
+    --help |    -h ) echo "$usage"; exit 0;;
+    --version | -V ) echo "$__scriptFile -- Version $__scriptVersion"; exit 0;;
+    --codecs       ) ffmpeg -codecs; exit 0;;
+    --video |   -v ) codecVideo="$2"; shift 2;;
+    --audio |   -a ) codecAudio="$2"; shift 2;;
+    * ) break;;
+    esac
+done
+echo "${@:-$(</dev/stdin)}" | while read line; do
+    main "$line"
+done
