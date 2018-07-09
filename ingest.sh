@@ -12,6 +12,7 @@ tvPath="$mediaPath/TV Shows"
 moviePath="$mediaPath/Movies"
 log(){ 
     echo "[$(date +%F\ %T)] $(whoami) ($scriptPID) $scriptName - $@" >>/var/log/ingest.log
+    echo "$@" >&2
     logger -i "$scriptName - $@"
 }
 
@@ -227,15 +228,17 @@ move_tv(){
     fi
 }
 main(){
+    sudo -v
     inputFile="$@"
     log "Original File: $inputFile"
     mediaFile="$(find_media "$inputFile")"
     tempFile="/tmp/$(basename "$mediaFile")"
-    log "main(): mediaFile=$mediaFile --- "
+    log "main \"$mediaFile\""
     if [[ "$mediaFile" == "" ]]; then
         log "Non Media file: $inputFile"
         exit 1
     fi
+    log "Moving to $tempFile"
     mv -f "$mediaFile" "$tempFile"
     mediaFile="$tempFile"
     #If the inputFile is a dir, remove it since we moved media to /tmp
@@ -263,4 +266,5 @@ main(){
 }
 #move_tv "$tvPath" "$1"
 #Deluge exec will pass 1=TorrentID, 2=TorrentFile, 3=TorrentPath
+echo "IngestMedia: $ingestMedia"
 main "$ingestMedia"

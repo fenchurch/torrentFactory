@@ -144,8 +144,7 @@ imgTest(){
         && sips -g pixelWidth "${@:-$(cat /dev/stdin)}" | sed 's|.*[^0-9+]||' \
         || identify -ping -format "%w" "${@:-$(cat /dev/stdin)}"
 }
-main(){
-    local show s e id search xml mirror
+collectData(){
     if [[ "$(basename "$file")" =~ (^.+)\ \-\ S([0-9][0-9])E([0-9][0-9]).*$ ]]; then
         name=${BASH_REMATCH[1]}
         S=${BASH_REMATCH[2]}
@@ -224,35 +223,82 @@ main(){
     tagsData=`cat "$tagsXML"`
     #
     cnid=`$info "$file" | grep cnID | sed 's|.* ||'`
-    [[ -z "$cnid" ]] && cnid=$(echo $(( 10000+($RANDOM)%(20000-10000+1) ))$(( 1000+($RANDOM)%(9999-1000+1) ))) || :
+    [[ -z "$cnid" ]] && \
+        cnid=$(echo $(( 10000+($RANDOM)%(20000-10000+1) ))$(( 1000+($RANDOM)%(9999-1000+1) )))
     #
+}
+printData(){
+    collectData
+    echo "
+        S:'$S' s:'$s'
+        E:'$E' e:'$e'
+        episde:  '$episode'
+        series:  '$series'
+        release: '$release'
+        purchase:'$purchase'
+        network: '$network'
+        id:      '$id'
+        description:'$description'
+        tagsData:   '$tagsData'"
+}
+main(){
+    collectData
+
     [[ removeTags -eq 1 ]] && $tags -r AacCdDgGHilmMnNoPsStTywR "$file" || :
     #
     LOG Writing TV Tags to $file
-    $AtomicParsley "$file" --artwork REMOVE_ALL --overWrite \
-        --title "$episode" \
-        --artist "$series" \
+    $AtomicParsley "$file"\
+        --title "$episode"\
+        --artist "$series"\
         --albumArtist "$series" \
         --album "$series, Season $s"\
         --tracknum "$e" \
         --sortOrder "album" "$series, Season $s"\
-        --disk "1/1" \
-        --year "$release" \
-        --purchaseDate "$purchase" \
-        --description "$description" \
-        --TVNetwork "$network" \
-        --TVShowName "$series" \
-        --TVSeasonNum "$s" \
-        --TVEpisode "$id" \
-        --TVEpisodeNum "$e" \
-        --stik "TV Show" \
-        $( [[	-e "$posterFile" && imgIntegrityTest -gt 100 ]] && echo --artwork "$posterFile" || : )\
-        --genre "$genre" \
-        --rDNSatom "$tagsData" name=iTunMOVI domain=com.apple.iTunes > /dev/null
+        --disk "1/1"\
+        --year "$release"\
+        --purchaseDate "$purchase"\
+        --description "$description"\
+        --TVNetwork "$network"\
+        --TVShowName "$series"\
+        --TVSeasonNum "$s"\
+        --TVEpisode "$id"\
+        --TVEpisodeNum "$e"\
+        --stik "TV Show"\
+        $( [[ -e "$posterFile" && imgIntegrityTest -gt 100 ]]\
+            && echo --artwork "$posterFile" )\
+        --genre "$genre"\
+        --overWrite >/dev/null 2>&1
+        #--rDNSatom "$tagsData" name=iTunMOVI \
     [[ ! -z "$cnid" ]] && $tags -I "$cnid" "$file" || :
     newFile="$(dirname "$file")/$series - S${S}E${E}.mp4";
     [ ! -f "$newFile" ] && mv -f "$file" "$newFile";
     echo "$newFile";
     rm -r $tmp;
+    exit 0
 }
-[ -e "$file" ] && main || LOG "No File to add TV Tags to";
+
+while true; do
+    case "$1" in
+        --help        | -h ) usage; exit 0;;
+        --version    | -V ) echo "$__scriptFile -- Version $__scriptVersion"; exit 0;;
+        --test        | -t ) test=true; shift;;
+        * ) break;;
+    esac
+done
+if [[ -t 0 && $# -eq 0 ]]; then
+    echo "$usage"
+    exit 1
+fi
+
+echo "${@:-$(</dev/stdin)}" | while read line; do
+    file="$line"
+    if [ -e "$file" ]; then
+        if [[ $test == true ]]; then 
+            printData 
+        else
+            main
+        fi
+    else
+        LOG "No File to add TV Tags to"
+    fi
+done
