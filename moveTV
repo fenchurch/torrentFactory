@@ -1,61 +1,93 @@
 #!/bin/bash
-[[ "$EUID" != 0 ]] && sudo -v
-scriptPID=$$
-scriptPath="$(dirname "$0")"
-scriptName="$(basename "$0")"
-usage="Usage: $scriptName file"
-tvPath="/mnt/nas/Media/TV Shows"
+__scriptVersion=1.0
+__scriptPID=$$
+__scriptPath="$(cd "$(dirname "$0")"; pwd -P )"
+__scriptFile="$(basename "$0")"
+
+# Function ===================================================================== 
+#           Name:  moveTV
+#         Author:  Rusty Gibbs 
+#       Homepage:  http://www.wickedidol.com
+#            Git:  https://github.com/fenchurch/torrentFactory.git
+#        Created:  2018-05-05
+#       Modified:  2018-05-31
+# ==============================================================================
+usage="Usage: $__scriptName file"
+# default vars =============================================================={{{
+
+# ===========================================================================}}}
+
+source $__scriptPath/config
+
 tvRegex='(^.+)\ \-\ S([0-9][0-9])(E[0-9][0-9].*$)'
 
+# Functions ==========================================================================={{{
 log(){ 
-    echo "[$(date +%F\ %T)] $(whoami) ($scriptPID) $scriptName - $@" >>/var/log/ingest.log
-    logger -i "$scriptName - $@"
+    message="$__scriptFile - $@"
+#    echo "[$(date +%F\ %T)] $(whoami) ($__scriptPID) $message" >>$log
+#    logger -i "$message"
+    msg "$message"
 }
+msg(){ echo "$@" ; }
+#err(){ echo -e '\033'}
+
 Test(){
     if [[ "$(basename "$1")" =~ $tvRegex ]]; then
-        remote="$tvPath/${BASH_REMATCH[1]}/Season ${BASH_REMATCH[2]#0*}/${BASH_REMATCH[1]} - S${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
+        remote="$tv_shows/${BASH_REMATCH[1]}/Season ${BASH_REMATCH[2]#0*}/${BASH_REMATCH[1]} - S${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
         if [ -e "$remote" ]; then 
-            echo "Original File:    $(du -h "$1")"
-            echo "Remote File:      $(du -h "$remote")"
+            msg "Original File:    $(du -h "$1")"
+            msg "Remote File:      $(du -h "$remote")"
         else
-            echo "Remote file doesnt exist at $remote"
+            msg "Remote file doesnt exist at $remote"
             return 1
         fi
     else
-        echo "Error: $1 doesnt conform to regex pattern: $tvRegex"
+        msg "Error: $1 doesnt conform to regex pattern: $tvRegex"
         return 1
     fi
 }
-Move(){
-
+main(){
+    [[ "$EUID" != 0 ]] && sudo -v
     if [[ "$(basename "$1")" =~ $tvRegex ]]; then
         series=${BASH_REMATCH[1]}
         season=${BASH_REMATCH[2]#0*}
-        path="$tvPath/$series/Season $season"
+        path="$tv_shows/$series/Season $season"
         if [ ! -d "$path" ]; then
             mkdir -p "$path"
             chmod 0777 "$path"
         fi
         error=$(cp -vf "$1" "$path" 2>&1 && sudo rm "$1" 2>&1);
-        [ $? -eq 0 ] \
-            && log "Moved $1 to $tvPath" \
-            || log "Error: $error"; 
+        if [ $? -eq 0 ]; then
+            log "Moved $1 to $tv_shows"
+            echo "$path/$1"
+        else
+            log "Error: $error" 
+            return 2
+        fi
     else
-        echo $1 didnt match
+        echo $1 didnt match >&2
         return 1
     fi
 }
-
-if [ $# -eq 0 ]; then 
+# ===========================================================================}}}
+while [ $# -gt 0 ]; do
+    case "$1" in
+    --help      | -h) usage; exit 0;;
+    --version   | -V) echo "$__scriptFile -- Version $__scriptVersion"; exit 0;;
+    --test      | -t) test=1; shift;;
+    * ) break;;
+    esac
+done
+# If not piped or arguemnts given, print usage
+if [[ -t 0 && $# -eq 0 ]]; then
     echo "$usage"
     exit 1
-fi 
+fi
+echo "${@:-$(</dev/stdin)}" | while read line; do
+    if [ -n "$test" ]; then
+        Test "$line" 
+    else
+        main "$line"
+    fi
+done
 
-while [ ${#@} -gt 0 ]; do
-    case "$1" in
-    --help    | -h ) echo "$usage"; exit 0;;
-    --test    | -t ) Test "$2"; exit 0;;
-    * ) Move "$1";;
-    esac
-    shift
-done    

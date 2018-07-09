@@ -2,7 +2,7 @@
 
 __scriptVersion=1.0
 __scriptPID=$$
-__scriptPath="$(cd "$(realpath "$(dirname "$0")")"; pwd -P )"
+__scriptPath="$(cd "$(dirname "$0")"; pwd -P )"
 __scriptFile="$(basename "$0")"
 
 # Function ===================================================================== 
@@ -39,7 +39,7 @@ main(){
     if [[ $extension != mp4 || $a != copy || $v != copy ]]; then
         echo "Beginning conversion of $@" >&2
         [[ "$@" == "$filename.mp4" ]] && filename+="-converted"
-        ffmpeg -y -i "$@" -c:v $v -c:a $a -strict -2 "$filename.mp4"
+        ffmpeg -hide_banner -v 32 -y -i "$@" -c:v $v -c:a $a -strict -2 "$filename.mp4"
         [ $? -gt 0 ] && echo "Error converting $@" >&2 && return 4
         echo "$filename.mp4"
         rm "$@"
@@ -48,8 +48,6 @@ main(){
         echo "$@"
     fi
 }
-
-
 
 while true; do
     case "$1" in

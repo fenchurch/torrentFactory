@@ -1,17 +1,17 @@
 #!/bin/bash
 __scriptVersion=1.0
 __scriptPID=$$
-__scriptPath="$(dirname "$0")"
+__scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 __scriptFile="$(basename "$0")"
 
 # Function ========================================================   
-#           Name:  
+#           Name:  renameMovie
 #         Author:  Rusty Gibbs 
 #       Homepage:  http://www.wickedidol.com
-#            Git:  https://github.com/fenchurch/movieDownloads.git
-#    Description:  Tag movies
+#            Git:  https://github.com/fenchurch/torrentFactory.git
+#    Description:  Rename Movie file
 #        Created:  2018-05-20
-#       Modified:  2018-05-20
+#       Modified:  2018-05-28
 # ================================================================= 
 name="$(basename "$1")"
 name="${name%.*}"
@@ -26,9 +26,10 @@ whitespace(){
 
 
 echo $name
-filmRenameRegex='(^.*)[\(]([1-2]{1}[0-9]{3})[\)]*.*$'
-if [[ "$name" =~ "$filmRenameRegex" ]]; then
-    echo $match
-    title="${BASH_REMATCH[1]}"
-    echo $title
+movieRenameRegex='^(.*)?(\(([1-2][0-9]{3})\))*.*$'
+if [[ "$name" =~ $movieRenameRegex ]]; then
+    title=$(whitespace "${BASH_REMATCH[1]}")
+    year=${BASH_REMATCH[3]}
+    echo ${BASH_REMATCH[@]}
+    echo "$title ($year)"
 fi

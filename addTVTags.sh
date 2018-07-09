@@ -1,9 +1,32 @@
 #!/bin/bash
+__scriptVersion=1.1
+__scriptPID=$$
+__scriptPath="$(cd "$(dirname "$0")"; pwd -P )"
+__scriptFile="$(basename "$0")"
+
+# Function ===================================================================== 
+#           Name:  tagTV
+#         Author:  Rusty Gibbs 
+#       Homepage:  http://www.wickedidol.com
+#            Git:  https://github.com/fenchurch/torrentFactory.git
+#        Created:  2018-05-05
+#       Modified:  2018-05-30
+# ==============================================================================
+usage="tagTV [file] or tagTV <file"
+
+# default vars =============================================================={{{
+
+# ===========================================================================}}}
 sudo -v
+source $__scriptPath/config
+
+
 LOG(){
     echo "[$(date +%F\ %T)] ($(basename "$0"):$$) $@" >> /var/log/ingest.log;
     logger -i "$(basename $0) - $@";
 }
+shopt -s expand_aliases
+
 scriptPID=$$
 file="$@"
 tvDB_apiKey=71491072D412D6F5

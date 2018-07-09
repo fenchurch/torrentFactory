@@ -1,4 +1,28 @@
 #!/bin/bash
-echo "${$@:-$(</dev/stdin)}" | while read line; do
-    echo "$line"
-done
+__scriptVersion=1.0
+__scriptPID=$$
+__scriptPath="$(cd "$(dirname "$0")"; pwd -P )"
+__scriptFile="$(basename "$0")"
+
+# Function ===================================================================== 
+#           Name:  test
+#         Author:  Rusty Gibbs 
+#       Homepage:  http://www.wickedidol.com
+#            Git:  https://github.com/fenchurch/torrentFactory.git
+#        Created:  2018-05-05
+#       Modified:  2018-06-20
+# ==============================================================================
+usage="usage:
+    $__scriptFile <input>"
+# default vars =============================================================={{{
+
+# ===========================================================================}}}
+shopt -s expand_aliases
+alias _log=$__scriptPath/_log
+dependencies=(
+    np=/users/rusty/.bin/nowplaying
+    np2=/users/rusty/.bin/nowplaying
+    _log=$__scriptPath/_log
+)
+source $__scriptPath/checkDependencies "${dependencies[@]}"
+
