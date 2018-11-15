@@ -266,5 +266,11 @@ main(){
 }
 #move_tv "$tvPath" "$1"
 #Deluge exec will pass 1=TorrentID, 2=TorrentFile, 3=TorrentPath
-echo "IngestMedia: $ingestMedia"
-main "$ingestMedia"
+if [[ "$(dirname "$ingestMedia")" != '/root/Downloads/tv/' ]]; then 
+    echo "Not Ingesting Media: $ingestMedia"
+    exit 1
+else
+    echo "Ingesting Media: $ingestMedia"
+    main "$ingestMedia"
+    exit 0
+fi
