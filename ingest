@@ -16,22 +16,13 @@ log(){
     logger -i "$scriptName - $@"
 }
 
-if [ $# -eq 1 ]; then
-    ingestMedia="$1"
-elif [ $# -eq 3 ]; then
-    ingestMedia="${3%/}/$2"
-else
-    log Missing Arguments.
-    echo "Missing Arguments. Usage: $usage"
-    exit 1;
-fi
 dependencies=(
     ffmpeg=/usr/bin/ffmpeg
     ffprobe=/usr/bin/ffprobe
     moveTV=~/bin/moveTV
 )
 translations=(
-    translacion=Translation
+	"Riverdale us"="Riverdale"
 )
 mediaExtensions=( mp4 m4v mkv mov avi )
 mediaExclusions=( '.*[Ss]ample.*' )
@@ -64,20 +55,28 @@ checkDependencies() {
 }
 whitespace(){
     local r="$@"
+    #turn ._( into spaces
     r="${r//[\.\_\(]/ }"
+    #turn " - " into " "
     r="${r//\ -\ / }"
-    echo "${r%"${r##*[![:space:] ]}"}"
+    #if there is a space at the end 
+    r="${r%"${r##*[![:space:] ]}"}"
+    replace "$r" " -$"
 }
 replace(){
-    sed -i -e 's/$2/$3/g' <<< "$1"
+    sed -e "s/$2/$3/g" <<<"$1"
 }
 lowercase() {
     tr '[:upper:]' '[:lower:]' <<<$@
 }
 translate() {
-    local r="$@"
-    for t in ${translations[@]}; do
-        [[ "`lowercase $r`" == "`lowercase ${t%%=*}`" ]] && r=${t#*=} || :
+    #remove " -"at end of the word, happens when translating a previously formatted tvshow
+    local r="${@}";
+    for translation in "${translations[@]}"; do
+        if [[ "`lowercase $r`" == "`lowercase ${translation%%=*}`" ]]; then
+            echo "${translation#*=}"
+            return 0
+        fi
     done
     echo "$r";
 }
@@ -183,11 +182,11 @@ sort_media(){
     tvRenameRegex='(^.+)[\-\_\.\ ]([sS\[]*([0-9]{1,2})[EeXx]([0-9]{2})).*$'
     movieRenameRegex='(^.*)([1-2]{1}[0-9]{3})[\)]*.*$'
     #Check if the filename is already formatted for TV
-    if [[ "$name" =~ $tvRegex ]]; then
-        echo "$input"
-        return 0
+#    if [[ "$name" =~ $tvRegex ]]; then
+#        echo "$input"
+#        return 0
     #Rename TV
-    elif [[ "$name" =~ $tvRenameRegex ]]; then
+    if [[ "$name" =~ $tvRenameRegex ]]; then
         title="$( translate "$( whitespace ${BASH_REMATCH[1]} )" )"
         s="$( leading_zero "${BASH_REMATCH[3]}" )"
         e="$( leading_zero "${BASH_REMATCH[4]}" )"
@@ -264,13 +263,26 @@ main(){
     fi
     echo "$mediaFile"
 }
+
+if [ $# -eq 1 ]; then
+    ingestMedia="$1"
+elif [ $# -eq 3 ]; then
+    ingestMedia="${3%/}/$2"
+else
+    log Missing Arguments.
+    echo "Missing Arguments. Usage: $usage"
+    exit 1;
+fi
 #move_tv "$tvPath" "$1"
 #Deluge exec will pass 1=TorrentID, 2=TorrentFile, 3=TorrentPath
-if [[ "$(dirname "$ingestMedia")" != '/root/Downloads/tv/' ]]; then 
-    echo "Not Ingesting Media: $ingestMedia"
+if [[ "$(dirname "$ingestMedia")" != '/root/Downloads/tv' ]]; then 
+    msg="Not Ingesting Media: $ingestMedia"
+    msg+=" becuase its located in "$(dirname "$ingestMedia" )""
+    log "$msg"
     exit 1
 else
-    echo "Ingesting Media: $ingestMedia"
+    msg="Ingesting Media: $ingestMedia"
+    log "$msg"
     main "$ingestMedia"
     exit 0
 fi
