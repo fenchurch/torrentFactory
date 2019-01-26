@@ -29,7 +29,7 @@ mediaExclusions=( '.*[Ss]ample.*' )
 
 tvRegex='(^.+)\ \-\ S([0-9][0-9])E([0-9][0-9]).*$'
 
-tag_tv(){ "$scriptPath/addTVTags.sh" "$@"; }
+tag_tv(){ "$scriptPath/addTVTags" "$@"; }
 tag_movie(){ exit; }
 #
 #Short functions
@@ -249,7 +249,7 @@ main(){
     if [[ $mediaType == 0 ]]; then #its TV
         mediaFile="$(tag_tv "$mediaFile")"
         mediaFile="$(move_tv "$tvPath" "$mediaFile")"
-        $scriptPath/plexScan.sh
+        $scriptPath/plexScan
         return
     fi
     if [[ $mediaType == 1 ]]; then
