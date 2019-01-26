@@ -1,4 +1,5 @@
 #!/bin/bash
+#Limit character length of Description, its causing Parsley to dump out
 sudo -v
 LOG(){
     echo "[$(date +%F\ %T)] ($(basename "$0"):$$) $@" >> /var/log/ingest.log;
@@ -6,7 +7,7 @@ LOG(){
 }
 scriptPID=$$
 file="$@"
-tvDB_apiKey=71491072D412D6F5
+tvDB_apiKey="71491072D412D6F5"
 [[ $(uname) == "Darwin" ]] && xpath="xpath" || xpath="xpath -q -e" 
 xmllint="xmllint"
 AtomicParsley="AtomicParsley"
@@ -151,6 +152,8 @@ collectData(){
     network="`cat "$seriesXML" | $xpath //Network/text\(\) 2>&-`"
     release="`cat "$episodeXML" | $xpath //FirstAired/text\(\) 2>&-`"
     description="`cat "$episodeXML" | $xpath //Overview/text\(\) 2>&- | urldecode`"
+    [[ $(echo "$description" | wc -c) -gt 252 ]]\
+        && description="${description:0:252}..."
     genre="`cat "$seriesXML" | $xpath //Genre/text\(\) 2>&- | genreTranslation`"
     actors="`cat "$seriesXML" | $xpath //Actors/text\(\) 2>&- | stringToDict \|`"
     guests="`cat "$episodeXML" | $xpath //GuestStars/text\(\) 2>&- | stringToDict \|`"
