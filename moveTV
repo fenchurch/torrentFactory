@@ -23,10 +23,16 @@ tvRegex='(^.+)\ \-\ S([0-9][0-9])(E[0-9][0-9].*$)'
 
 # Functions ==========================================================================={{{
 log(){ 
+<<<<<<< HEAD
     message="$__scriptFile - $@"
 #    echo "[$(date +%F\ %T)] $(whoami) ($__scriptPID) $message" >>$log
 #    logger -i "$message"
     msg "$message"
+=======
+    echo "[$(date +%F\ %T)] $(whoami) ($scriptPID) $scriptName - $@" >>/var/log/ingest.log
+    echo "$@" >&2 
+    logger -i "$scriptName - $@"
+>>>>>>> c0d94b03f1e7809522db4aa088b4170271a8aaee
 }
 msg(){ echo "$@" ; }
 #err(){ echo -e '\033'}
@@ -35,8 +41,13 @@ Test(){
     if [[ "$(basename "$1")" =~ $tvRegex ]]; then
         remote="$tv_shows/${BASH_REMATCH[1]}/Season ${BASH_REMATCH[2]#0*}/${BASH_REMATCH[1]} - S${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
         if [ -e "$remote" ]; then 
+<<<<<<< HEAD
             msg "Original File:    $(du -h "$1")"
             msg "Remote File:      $(du -h "$remote")"
+=======
+            [ -e "$1" ] && echo "Original File:    $(du -h "$1")"
+            echo "Remote File:      $(du -h "$remote")"
+>>>>>>> c0d94b03f1e7809522db4aa088b4170271a8aaee
         else
             msg "Remote file doesnt exist at $remote"
             return 1

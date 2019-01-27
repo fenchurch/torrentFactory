@@ -1,0 +1,319 @@
+#!/bin/bash
+<<<<<<< HEAD:addTVTags.sh
+__scriptVersion=1.1
+__scriptPID=$$
+__scriptPath="$(cd "$(dirname "$0")"; pwd -P )"
+__scriptFile="$(basename "$0")"
+
+# Function ===================================================================== 
+#           Name:  tagTV
+#         Author:  Rusty Gibbs 
+#       Homepage:  http://www.wickedidol.com
+#            Git:  https://github.com/fenchurch/torrentFactory.git
+#        Created:  2018-05-05
+#       Modified:  2018-05-30
+# ==============================================================================
+usage="tagTV [file] or tagTV <file"
+
+# default vars =============================================================={{{
+
+# ===========================================================================}}}
+sudo -v
+source $__scriptPath/config
+
+
+LOG(){
+    echo "[$(date +%F\ %T)] ($(basename "$0"):$$) $@" >> /var/log/ingest.log;
+    logger -i "$(basename $0) - $@";
+}
+shopt -s expand_aliases
+
+=======
+#Limit character length of Description, its causing Parsley to dump out
+if [[ "$EUID" != 0 ]]; then sudo -v; fi
+>>>>>>> c0d94b03f1e7809522db4aa088b4170271a8aaee:addTVTags
+scriptPID=$$
+scriptPath="$(dirname "$0")"
+scriptName="$(basename "$0")"
+log(){ 
+    echo "[$(date +%F\ %T)] $(whoami) ($scriptPID) $scriptName - $@" >>/var/log/ingest.log
+    echo "$@" >&2
+    logger -i "$scriptName - $@"
+}
+
+file="$@"
+tvDB_apiKey="71491072D412D6F5"
+[[ $(uname) == "Darwin" ]] && xpath="xpath" || xpath="xpath -q -e" 
+xmllint="xmllint"
+AtomicParsley="AtomicParsley"
+info="mp4info"	# path to mp4info
+tags="mp4tags"	# path to mp4tags
+chaps="mp4chaps"	# path to mp4chaps
+art="mp4art"		# path to mp4art
+#
+removeTags=true;
+#
+tmp="/tmp/$scriptPID"
+xmlHeader='<?xml version="1.0" encoding="UTF-8"?>'\
+'<!DOCTYPE plist PUBLIC "-//Apple/DTD PLIST 1.0/EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0">'
+
+urlencode(){
+    echo "${1:-$(cat)}" | sed -e 's|\ |+|g' -e 's|\ \-\ |:\ |g' -e "s|'|%27|g"
+}
+urldecode(){
+    echo "${1:-$(cat)}" | sed -e 's|\&amp;|\&|g' -e 's|\&quot;||g'
+}
+stringToDict(){
+    local d=""
+    if [[ ${#1} == 1 ]]; then
+        d="$1"
+        shift
+    fi
+    input=${1:-$(cat)}
+    if [ -n "$input" ]; then
+        echo $input | sed	-e "s/^${d}*//" -e "s/${d}*$//" | xmlDict 
+    fi
+}
+xmlDict(){
+    local child key
+    key="name"
+    child="string"
+    while [ ${#@} -gt 1 ]; do
+        case "$1" in
+            --key   | -k) key="$2";   shift 2 ;;
+            --child | -c) child="$2"; shift 2 ;;
+        esac
+    done
+    input=${1:-$(cat)}
+    [ -n "$input" ] && echo "<dict><key>$key</key><$child>$input</$child></dict>"
+}
+substituteISO88591(){
+    input="$@";
+    echo "${input:-$(cat /dev/stdin)}" | iconv -f utf8 -t ascii//TRANSLIT | sed \
+    -e 's|&#162;| cents|g' -e 's|&#163;|#|g' -e 's|&#164;|$|g'  -e 's|&#165;| yen|g'\
+    -e 's|&#169;|©|g'   -e 's|&#171;|"|g'   -e 's|&#172;|/|g'   -e 's|&#173;|-|g' \
+    -e 's|&#174;|®|g'   -e 's|&#176;|º|g'   -e 's|&#177;|+/-|g' -e 's|&#178;| 2|g'\
+    -e 's|&#179;| 3|g'  -e 's|&#180;|^|g'   -e 's|&#181;||g'    -e 's|&#182;|¶|g'\
+    -e 's|&#183;|,|g'   -e 's|&#184;||g'    -e 's|&#185;| 1|g'  -e 's|&#186;||g'\
+    -e 's|&#187;|"|g'   -e 's|&#188;|1/4|g' -e 's|&#189;|1/2|g' -e 's|&#190;|3/4|g'\
+    -e 's|&#191;|!|g'   -e 's|&#192;|A|g'   -e 's|&#193;|A|g'   -e 's|&#194;|A|g'\
+    -e 's|&#195;|A|g'   -e 's|&#196;|A|g'   -e 's|&#197;|A|g'   -e 's|&#198;|AE|g'\
+    -e 's|&#199;|C|g'   -e 's|&#200;|E|g'   -e 's|&#201;|E|g'   -e 's|&#202;|E|g'\
+    -e 's|&#203;|E|g'   -e 's|&#204;|I|g'   -e 's|&#205;|I|g'   -e 's|&#206;|I|g'\
+    -e 's|&#207;|I|g'   -e 's|&#208;|TH|g'  -e 's|&#209;|N|g'   -e 's|&#210;|O|g'\
+    -e 's|&#211;|O|g'   -e 's|&#212;|O|g'   -e 's|&#213;|O|g'   -e 's|&#214;|O|g'\
+    -e 's|&#215;|x|g'   -e 's|&#216;|O|g'   -e 's|&#217;|U|g'   -e 's|&#218;|U|g'\
+    -e 's|&#219;|U|g'   -e 's|&#220;|U|g'   -e 's|&#221;|Y|g'   -e 's|&#222;||g'\
+    -e 's|&#223;|s|g'   -e 's|&#224;|a|g'   -e 's|&#225;|a|g'   -e 's|&#226;|a|g'\
+    -e 's|&#227;|a|g'   -e 's|&#228;|a|g'   -e 's|&#229;|a|g'   -e 's|&#230;|ae|g'\
+    -e 's|&#231;|c|g'   -e 's|&#232;|e|g'   -e 's|&#233;|e|g'   -e 's|&#234;|e|g'\
+    -e 's|&#235;|e|g'   -e 's|&#236;|i|g'   -e 's|&#237;|i|g'   -e 's|&#238;|i|g'\
+    -e 's|&#239;|i|g'   -e 's|&#240;|th|g'  -e 's|&#241;|n|g'   -e 's|&#242;|o|g'\
+    -e 's|&#243;|o|g'   -e 's|&#244;|o|g'   -e 's|&#245;|o|g'   -e 's|&#246;|o|g'\
+    -e 's|&#247;||g'    -e 's|&#248;|o|g'   -e 's|&#249;|u|g'   -e 's|&#250;|u|g'\
+    -e 's|&#251;|u|g'   -e 's|&#252;|u|g'   -e 's|&#253;|y|g'   -e 's|&#254;||g'\
+    -e 's|&#255;|y|g'   -e 's|&#34;|?|g'    -e 's|&#38;|&|g'    -e 's|&#60;|<|g'\
+    -e 's|&#62;|>|g'    -e 's|&#338;|OE|g'  -e 's|&#339;|oe|g'  -e 's|&#352;|S|g'\
+    -e 's|&#353;|s|g'   -e 's|&#376;|Y|g'   -e 's|&#382;|z|g'   -e 's|&#710;||g'\
+    -e 's|&#732;|~|g'   -e 's|&#8194;| |g'  -e 's|&#8195;| |g'  -e 's|&#8201;| |g'\
+    -e 's|&#8204;||g'   -e 's|&#8205;||g'   -e 's|&#8206;||g'   -e 's|&#8207;||g'\
+    -e 's|&#8211;|-|g'  -e 's|&#8212;|-|g'  -e "s|&#8216;|'|g"  -e "s|&#8217;|'|g"\
+    -e "s|&#8218;|'|g"  -e 's|&#8220;|"|g'  -e 's|&#8221;|"|g'  -e 's|&#8222;|"|g'\
+    -e 's|&#8224;||g'   -e 's|&#8225;||g'   -e 's|&#8240;||g'   -e 's|&#8249;|<|g'\
+    -e 's|&#8250;|>|g'  -e 's|&#8364;|e|g'
+}
+genreTranslation(){
+    local input IFS=$'\n'
+    input="${@:-$(cat)}"
+    translations=(
+        '\(Science-Fiction\|Sci-Fi\|Fantasy\)'="Sci-Fi & Fantasy"
+        '\(Drama\|Historical\|Political\|Crime\|Mystery\)'="Drama"
+        '\(Comedy\|Road\)'="Comedy"
+        '\(Action\|Adventure\|Disaster\)'="Action & Adventure"
+        '\(Thriller\|Suspense\)'="Thriller"
+        Horror="Horror"
+        Musical="M/imgusical"
+        Documentary="Documentary"
+        Sport="Sports"
+        Western="Western"
+        Animation="Animation" )
+    for i in ${translations[@]}; do
+        if echo "$input" | grep "${i%%=*}" > /dev/null 2>&1; then
+            echo "${i#*=}"
+            return
+        fi
+    done
+}
+resizeImage(){
+    h=${2:-600}
+    w=${3:-600}
+    img="${@:-$(cat)}"
+    [[ "$(uname)" == "Darwin" ]] \
+        && sips -Z ${w}W${h}H "$img" --out "$img" > /dev/null 2>&1 \
+        || convert "$img" -resize ${w}X${h} "$img"
+}
+imgTest(){
+    [[ "$(uname)" == "Darwin" ]] \
+        && sips -g pixelWidth "${@:-$(cat /dev/stdin)}" | sed 's|.*[^0-9+]||' \
+        || identify -ping -format "%w" "${@:-$(cat /dev/stdin)}"
+}
+collectData(){
+    if [[ "$(basename "$file")" =~ (^.+)\ \-\ S([0-9][0-9])E([0-9][0-9]).*$ ]]; then
+        name=${BASH_REMATCH[1]}
+        S=${BASH_REMATCH[2]}
+        s=${S#0*}
+        E=${BASH_REMATCH[3]}
+        e=${E#0*}
+        id=$s$E
+        search="$(urlencode "$name")"
+    fi
+    [ !	-e "$tmp" ] && mkdir "$tmp" || :
+    mirror="`curl -Ls "http://www.thetvdb.com/api/$tvDB_apiKey/mirrors.xml" | $xpath //mirrorpath/text\(\) 2>&-`"
+    seriesID=`curl -Ls "$mirror/api/GetSeries.php?seriesname=$search" | $xpath //*[1]/seriesid/text\(\) 2>&-`
+    seriesURL="$mirror/api/$tvDB_apiKey/series/$seriesID"
+    seriesXML="$tmp/$search-S$S.xml"
+    if [[ $seriesID == "" ]]; then
+        log "$file is missing a seriesID from $mirror/api/GetSeries.php?seriesname=$search"; exit 1;
+    fi
+    log Gathering Data for $file from $seriesURL
+
+    [ !	-e "$seriesXML" ] && curl -Ls "$seriesURL/en.xml" | substituteISO88591 > "$seriesXML" || :
+    #
+    episodeXML="$tmp/$search-S${S}E${E}.xml"
+    [ !	-e $episodeXML ] && curl -Ls "$seriesURL/default/$s/$e/en.xml" | substituteISO88591 > "$episodeXML" || :
+    #
+    series="`cat "$seriesXML" | $xpath //SeriesName/text\(\) 2>&-`"
+    episode="`cat "$episodeXML" | $xpath //EpisodeName/text\(\) 2>&-`"
+    network="`cat "$seriesXML" | $xpath //Network/text\(\) 2>&-`"
+    release="`cat "$episodeXML" | $xpath //FirstAired/text\(\) 2>&-`"
+    description="`cat "$episodeXML" | $xpath //Overview/text\(\) 2>&- | urldecode`"
+    [[ $(echo "$description" | wc -c) -gt 252 ]]\
+        && description="${description:0:252}..."
+    genre="`cat "$seriesXML" | $xpath //Genre/text\(\) 2>&- | genreTranslation`"
+    actors="`cat "$seriesXML" | $xpath //Actors/text\(\) 2>&- | stringToDict \|`"
+    guests="`cat "$episodeXML" | $xpath //GuestStars/text\(\) 2>&- | stringToDict \|`"
+    director="`cat "$episodeXML" | $xpath //Director 2>&- | stringToDict \|`"
+    writers="`cat "$episodeXML" | $xpath //Writer/text\(\) 2>&- | stringToDict \|`"
+    purchase="$(date "+%Y-%m-%d %H:%M:%S")"
+    #
+    bannerXML="$tmp/$search-banner.xml"
+    [ !	-e "$bannerXML" ] && curl -Ls "$seriesURL/banners.xml" > "$bannerXML" || :
+    #
+    log Downloading poster image for $file
+    posterFile="$tmp/$search-S$S.jpg"
+    if [ ! -e "$posterFile" ]; then
+        posterID=1
+        posterCount=`cat "$bannerXML" | $xpath count\(//Banner[Season=$s]/BannerPath\) 2>&-`;
+        while [[ $posterID -le $posterCount ]]; do
+            poster=`cat "$bannerXML" | $xpath //*[Season=$s][$posterID]/BannerPath/text\(\) 2>&- `
+            curl -Ls $mirror/banners/"$poster" > "$posterFile"
+            imgIntegrityTest=`imgTest "$posterFile"`
+            if [[ $imgIntegrityTest -gt 100 ]]; then
+                resizeImage "$posterFile";
+                break;
+            else
+                rm "$posterFile"
+            fi
+            (( posterID ++ ))
+        done
+        if [ !	-e "$posterFile" ]; then
+            poster=`cat "$seriesXML" | $xpath //poster/text\(\) 2>&- `
+            curl -Ls $mirror/banners/$poster > $posterFile
+            imgIntegrityTest=`imgTest $posterFile`
+            [[ $imgIntegrityTest -gt 100 ]] && resizeImage "$posterFile" || :
+        fi
+        [ ! -e "$posterFile" ] && \
+            log "Could not find $posterFile" || :
+    fi
+    tagsXML="$tmp/$search-S${S}E${E}_tags.xml"
+    if [ ! -e $tagsXML ]; then
+        echo "$xmlHeader<dict>"\
+            "<key>cast</key><array>$actors$guests</array>"\
+            "<key>directors</key><array>$director</array>"\
+            "<key>screenwriters</key><array>$writers</array>"\
+            "</dict></plist>" | \
+            tr -cd '\11\12\40-\176' | \
+            $xmllint --format --output "$tagsXML" -
+    fi
+    tagsData=`cat "$tagsXML"`
+    #
+    cnid=`$info "$file" | grep cnID | sed 's|.* ||'`
+    [[ -z "$cnid" ]] && \
+        cnid=$(echo $(( 10000+($RANDOM)%(20000-10000+1) ))$(( 1000+($RANDOM)%(9999-1000+1) )))
+    #
+}
+printData(){
+    collectData
+    echo "
+        S:'$S' s:'$s'
+        E:'$E' e:'$e'
+        episde:  '$episode'
+        series:  '$series'
+        release: '$release'
+        purchase:'$purchase'
+        network: '$network'
+        id:      '$id'
+        description:'$description'
+        tagsData:   '$tagsData'"
+}
+main(){
+    collectData
+
+    [[ removeTags -eq 1 ]] && $tags -r AacCdDgGHilmMnNoPsStTywR "$file" || :
+    #
+    log Writing TV Tags to $file
+    $AtomicParsley "$file"\
+        --title "$episode"\
+        --artist "$series"\
+        --albumArtist "$series" \
+        --album "$series, Season $s"\
+        --tracknum "$e" \
+        --sortOrder "album" "$series, Season $s"\
+        --disk "1/1"\
+        --year "$release"\
+        --purchaseDate "$purchase"\
+        --description "$description"\
+        --TVNetwork "$network"\
+        --TVShowName "$series"\
+        --TVSeasonNum "$s"\
+        --TVEpisode "$id"\
+        --TVEpisodeNum "$e"\
+        --stik "TV Show"\
+        $( [[ -e "$posterFile" && imgIntegrityTest -gt 100 ]]\
+            && echo --artwork "$posterFile" )\
+        --genre "$genre"\
+        --overWrite >/dev/null 2>&1
+        #--rDNSatom "$tagsData" name=iTunMOVI \
+    [[ ! -z "$cnid" ]] && $tags -I "$cnid" "$file" || :
+    newFile="$(dirname "$file")/$series - S${S}E${E}.mp4";
+    [ ! -f "$newFile" ] && mv -f "$file" "$newFile";
+    echo "$newFile";
+    rm -r $tmp;
+    exit 0
+}
+
+while true; do
+    case "$1" in
+        --help        | -h ) usage; exit 0;;
+        --version    | -V ) echo "$__scriptFile -- Version $__scriptVersion"; exit 0;;
+        --test        | -t ) test=true; shift;;
+        * ) break;;
+    esac
+done
+if [[ -t 0 && $# -eq 0 ]]; then
+    echo "$usage"
+    exit 1
+fi
+
+echo "${@:-$(</dev/stdin)}" | while read line; do
+    file="$line"
+    if [ -e "$file" ]; then
+        if [[ $test == true ]]; then 
+            printData 
+        else
+            main
+        fi
+    else
+        log "No File to add TV Tags to"
+    fi
+done

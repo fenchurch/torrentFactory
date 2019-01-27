@@ -1,0 +1,62 @@
+#!/bin/bash
+__scriptVersion=1.0
+__scriptPID=$$
+__scriptPath="$(cd "$(dirname "$0")"; pwd -P )"
+__scriptFile="$(basename "$0")"
+
+# Function ===================================================================== 
+#           Name:  checkDependencies
+#         Author:  Rusty Gibbs 
+#       Homepage:  http://www.wickedidol.com
+#            Git:  https://github.com/fenchurch/torrentFactory.git
+#        Created:  2018-06-06
+#       Modified:  2018-06-17
+# ==============================================================================
+usage="usage:
+    $__scriptFile [-v|-h] <input>"
+error=0
+# default vars =============================================================={{{
+# ===========================================================================}}}
+shopt -s expand_aliases
+alias _log=$__scriptPath/'_log'
+
+while [ $? -gt 0 ]; do
+    case "$1" in
+    --help      | -h ) echo $usage; exit 0;;
+    --version   | -V ) echo $__scriptFile -- Version $__scriptVersion; exit 0;;
+    * ) break;;
+    esac
+done
+if [[ -t 0 && $# -eq 0 ]]; then
+    echo "$usage"
+    exit 1
+fi
+for line in  "${@:-$(</dev/stdin)}"; do
+    if [[ "$line" =~ ^(.*)=(.*)$ ]]; then
+        app=${BASH_REMATCH[1]}
+        path=${BASH_REMATCH[2]}
+    else
+        app=$line
+        path=$(which $app)
+        if [ $? -gt 0 ]; then 
+            _log -e "cannot find $app"
+            (( error++ ))
+            continue
+        fi
+    fi
+    if [[ "$path" =~ aliased\ to.* ]]; then
+        _log $path
+        continue
+    elif [[ "$(which $app)" =~ aliased\ to.* ]]; then
+        _log "$(which $app)"
+        continue
+    fi
+    if [[ ! -e "$path" ]]; then
+        _log -e "$app doesnt exist at $path"
+        (( error++ ))
+        continue
+    fi
+    _log aliasing $app to $path
+    alias $app=$path
+done
+exit $error

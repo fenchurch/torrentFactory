@@ -1,0 +1,29 @@
+#!/bin/bash
+#Used in all files
+LOG_FILE=/var/log/ingest.log
+
+TMP_PATH=/tmp
+#FINAL LOCATION OF MEDIA TYPES
+TV_PATH="/mnt/nas/Media/TV Shows"
+MOVIE_PATH="/mnt/nas/Media/Movies"
+
+TAG_TV_TVDB_APIKEY=71491072D412D6F5
+
+
+
+DEPENDENCIES_tagTV=(
+     xmllint=/usr/bin/xmllint
+     AtomicParsley=/usr/local/bin/AtomicParsley
+     mp4info=/usr/local/bin/mp4info
+     mp4tags=/usr/local/bin/mp4tags
+     mp4chaps=/usr/local/bin/mp4chaps
+     mp4art=/usr/local/bin/mp4art
+)
+DEPENDENCIES_tagMovie=(                       
+)
+DEPENDENCIES_ingest=(
+)
+DEPENDENCIES_moveTV=(
+)
+DEPENDENCIES_moveMovie=(
+)

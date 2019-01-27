@@ -23,19 +23,16 @@ codecVideo=h264
 codecAudio=aac
 # ===========================================================================}}}
 
-shopt -s expand_aliases
-alias mediaInfo="ffprobe -v error -hide_banner \
-    -show_entries stream=codec_name \
-    -of default=noprint_wrappers=1:nokey=1 \
-    -select_streams"
+codec="ffprobe -v error -hide_banner -show_entries stream=codec_name \
+        -of default=noprint_wrappers=1:nokey=1 -select_streams"
 
 main(){
     filename="${@%.*}"
     extension="${@##*.}"
     a="$codecAudio"
     v="$codecVideo"
-    [[ `mediaInfo a:0 "$@"` == "$a" ]] && a=copy;
-    [[ `mediaInfo v:0 "$@"` == "$v" ]] && v=copy;
+    [[ "$($codec a:0 "$@")" == "$a" ]] && a=copy;
+    [[ "$($codec v:0 "$@")" == "$v" ]] && v=copy;
     if [[ $extension != mp4 || $a != copy || $v != copy ]]; then
         echo "Beginning conversion of $@" >&2
         [[ "$@" == "$filename.mp4" ]] && filename+="-converted"
@@ -59,6 +56,11 @@ while true; do
     * ) break;;
     esac
 done
+
+if [[ -t 0 && $# -eq 0 ]]; then
+    echo "$usage"
+    exit 1
+fi
 echo "${@:-$(</dev/stdin)}" | while read line; do
     main "$line"
 done

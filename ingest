@@ -16,29 +16,20 @@ log(){
     logger -i "$scriptName - $@"
 }
 
-if [ $# -eq 1 ]; then
-    ingestMedia="$1"
-elif [ $# -eq 3 ]; then
-    ingestMedia="${3%/}/$2"
-else
-    log Missing Arguments.
-    echo "Missing Arguments. Usage: $usage"
-    exit 1;
-fi
 dependencies=(
     ffmpeg=/usr/bin/ffmpeg
     ffprobe=/usr/bin/ffprobe
     moveTV=~/bin/moveTV
 )
 translations=(
-    translacion=Translation
+	"Riverdale us"="Riverdale"
 )
 mediaExtensions=( mp4 m4v mkv mov avi )
 mediaExclusions=( '.*[Ss]ample.*' )
 
 tvRegex='(^.+)\ \-\ S([0-9][0-9])E([0-9][0-9]).*$'
 
-tag_tv(){ "$scriptPath/addTVTags.sh" "$@"; }
+tag_tv(){ "$scriptPath/addTVTags" "$@"; }
 tag_movie(){ exit; }
 #
 #Short functions
@@ -64,20 +55,28 @@ checkDependencies() {
 }
 whitespace(){
     local r="$@"
+    #turn ._( into spaces
     r="${r//[\.\_\(]/ }"
+    #turn " - " into " "
     r="${r//\ -\ / }"
-    echo "${r%"${r##*[![:space:] ]}"}"
+    #if there is a space at the end 
+    r="${r%"${r##*[![:space:] ]}"}"
+    replace "$r" " -$"
 }
 replace(){
-    sed -i -e 's/$2/$3/g' <<< "$1"
+    sed -e "s/$2/$3/g" <<<"$1"
 }
 lowercase() {
     tr '[:upper:]' '[:lower:]' <<<$@
 }
 translate() {
-    local r="$@"
-    for t in ${translations[@]}; do
-        [[ "`lowercase $r`" == "`lowercase ${t%%=*}`" ]] && r=${t#*=} || :
+    #remove " -"at end of the word, happens when translating a previously formatted tvshow
+    local r="${@}";
+    for translation in "${translations[@]}"; do
+        if [[ "`lowercase $r`" == "`lowercase ${translation%%=*}`" ]]; then
+            echo "${translation#*=}"
+            return 0
+        fi
     done
     echo "$r";
 }
@@ -183,18 +182,23 @@ sort_media(){
     tvRenameRegex='(^.+)[\-\_\.\ ]([sS\[]*([0-9]{1,2})[EeXx]([0-9]{2})).*$'
     movieRenameRegex='(^.*)([1-2]{1}[0-9]{3})[\)]*.*$'
     #Check if the filename is already formatted for TV
-    if [[ "$name" =~ $tvRegex ]]; then
-        echo "$input"
-        return 0
+#    if [[ "$name" =~ $tvRegex ]]; then
+#        echo "$input"
+#        return 0
     #Rename TV
-    elif [[ "$name" =~ $tvRenameRegex ]]; then
+    if [[ "$name" =~ $tvRenameRegex ]]; then
         title="$( translate "$( whitespace ${BASH_REMATCH[1]} )" )"
         s="$( leading_zero "${BASH_REMATCH[3]}" )"
         e="$( leading_zero "${BASH_REMATCH[4]}" )"
         name="$title - S${s}E${e}"
         output="$(dirname "$input")/$name.$ext"
-        mv -f "$input" "$output"
-        log Renamed "$input" to "$output"
+        if [[ "$input" != "$output" ]]; then
+            mv -f "$input" "$output"
+            log "Renamed $input to $output"
+        else
+            log "Already named correctly: $output"
+        fi
+
         echo "$output"
         return 0
     #Rename Movies
@@ -212,21 +216,6 @@ sort_media(){
     echo $input
     return 2
 }
-move_tv(){
-    storage="$1"
-    file="$(basename "$2")"
-    if [[ "$file" =~ (^.+)\ \-\ S([0-9][0-9])E([0-9][0-9]).*$ ]]; then
-        path="$storage/${BASH_REMATCH[1]}/Season ${BASH_REMATCH[2]#0*}"
-        if [ ! -d "$path" ]; then
-            mkdir -p "$path"
-            chmod 0777 "$path/.."
-        fi
-        chmod -R 0777 "$2"
-        log "Moving $2 to $path"
-        log $(cp -vf "$2" "$path" 2>&1 && rm "$2")
-        [ $? -eq 0 ] && echo $path/$file || exit 1
-    fi
-}
 main(){
     sudo -v
     inputFile="$@"
@@ -238,19 +227,25 @@ main(){
         log "Non Media file: $inputFile"
         exit 1
     fi
-    log "Moving to $tempFile"
-    mv -f "$mediaFile" "$tempFile"
+    if [[ "$mediaFile" != "$tempFile" ]]; then
+        log "Moving to $tempFile"
+        mv -f "$mediaFile" "$tempFile"
+    fi
     mediaFile="$tempFile"
     #If the inputFile is a dir, remove it since we moved media to /tmp
     [[ -d "$inputFile" ]] && rm -r "$inputFile" || :
-
+    log "1) --- Converting Media ---"
     mediaFile="$(convert_media "$mediaFile")"
+    log "2) --- Sorting File---"
     mediaFile="$(sort_media "$mediaFile")"
     mediaType=$?
     if [[ $mediaType == 0 ]]; then #its TV
-        mediaFile="$(tag_tv "$mediaFile")"
-        mediaFile="$(move_tv "$tvPath" "$mediaFile")"
-        $scriptPath/plexScan.sh
+        log "3) --- Tagging Mp4 ---"
+        mediaFile="$(addTVTags "$mediaFile")"
+        log "4) --- Moving to Media Storage---"
+        mediaFile="$(moveTV "$mediaFile")"
+        log "5) --- Adding to Database ---" 
+        $scriptPath/plexScan
         return
     fi
     if [[ $mediaType == 1 ]]; then
@@ -264,7 +259,26 @@ main(){
     fi
     echo "$mediaFile"
 }
+
+if [ $# -eq 1 ]; then
+    ingestMedia="$1"
+elif [ $# -eq 3 ]; then
+    ingestMedia="${3%/}/$2"
+else
+    log Missing Arguments.
+    echo "Missing Arguments. Usage: $usage"
+    exit 1;
+fi
 #move_tv "$tvPath" "$1"
 #Deluge exec will pass 1=TorrentID, 2=TorrentFile, 3=TorrentPath
-echo "IngestMedia: $ingestMedia"
-main "$ingestMedia"
+if [[ "$(dirname "$ingestMedia")" != '/root/Downloads/tv' ]]; then 
+    msg="Not Ingesting Media: $ingestMedia"
+    msg+=" becuase its located in "$(dirname "$ingestMedia" )""
+    log "$msg"
+    exit 1
+else
+    msg="Ingesting Media: $ingestMedia"
+    log "$msg"
+    main "$ingestMedia"
+    exit 0
+fi

@@ -1,0 +1,51 @@
+#!/bin/bash
+__scriptVersion=1.0
+__scriptPID=$$
+__scriptPath="$(cd "$(dirname "$0")"; pwd -P )"
+__scriptFile="$(basename "$0")"
+
+# Function ===================================================================== 
+#           Name:  _log
+#         Author:  Rusty Gibbs 
+#       Homepage:  http://www.wickedidol.com
+#            Git:  https://github.com/fenchurch/torrentFactory.git
+#        Created:  2018-06-17
+#       Modified:  2018-06-17
+# ==============================================================================
+usage="usage:
+    $__scriptFile [-e|-l <logfile>] <input>"
+# default vars =============================================================={{{
+
+# ===========================================================================}}}
+source $__scriptPath/config
+
+main(){
+    local head="[$(date +%F\ %T)] ($__scriptFile:$__scriptPID)"
+    [[ $error_mode ]] && \
+        pre="\033[31m" &&\
+        post="\033[39m" 
+    [[ $cast_mode ]] &&\
+        pre="\033[32m"\
+        post="\033[39m"
+    [[ -z "$LOG_FILE" || $error_mode || $cast_mode]] && \
+        echo "$pre$@$post" >&2
+    [[ -n "$LOG_FILE" ]] &&\
+        echo "$head $@" >"$LOG_FILE"
+    logger -i "$@"
+}
+while true; do
+    case "$1" in
+    --help      | -h ) usage; exit 0;;
+    --version   | -V ) echo "$__scriptFile -- Version $__scriptVersion"; exit 0;;
+    --broadcast | -b ) cast_mode=true; shift 1;;
+    --error     | -e ) error_mode=true; shift 1;;
+    --log_file  | -l ) LOG_FILE=$2; shift 2;;
+    * ) break;;
+    esac
+done
+
+if [[ -t 0 && $# -eq 0 ]]; then
+    echo "$usage"
+    exit 1
+fi
+echo "${@:-$(</dev/stdin)}" | while read line; do main "$line"; done
