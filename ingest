@@ -19,7 +19,8 @@ log(){
 dependencies=(
     ffmpeg=/usr/bin/ffmpeg
     ffprobe=/usr/bin/ffprobe
-    moveTV=~/bin/moveTV
+    moveTV=/usr/local/sbin/moveTV
+    addTVTags=/usr/local/sbin/addTVTags
 )
 translations=(
 	"Riverdale us"="Riverdale"
@@ -34,6 +35,7 @@ tag_movie(){ exit; }
 #
 #Short functions
 #
+
 checkDependencies() {
     #error counter
     local app appPath d missing=0
