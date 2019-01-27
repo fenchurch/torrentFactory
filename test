@@ -1,4 +1,0 @@
-#!/bin/bash
-echo "${$@:-$(</dev/stdin)}" | while read line; do
-    echo "$line"
-done
