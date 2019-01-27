@@ -19,13 +19,12 @@ usage="tagTV [file] or tagTV <file"
 # ===========================================================================}}}
 sudo -v
 source $__scriptPath/config
-
+shopt -s expand_aliases
 
 LOG(){
     echo "[$(date +%F\ %T)] ($(basename "$0"):$$) $@" >> /var/log/ingest.log;
     logger -i "$(basename $0) - $@";
 }
-shopt -s expand_aliases
 
 scriptPID=$$
 file="$@"

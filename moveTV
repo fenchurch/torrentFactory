@@ -31,7 +31,7 @@ log(){
 msg(){ echo "$@" ; }
 #err(){ echo -e '\033'}
 
-Test(){
+test(){
     if [[ "$(basename "$1")" =~ $tvRegex ]]; then
         remote="$tv_shows/${BASH_REMATCH[1]}/Season ${BASH_REMATCH[2]#0*}/${BASH_REMATCH[1]} - S${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
         if [ -e "$remote" ]; then 
@@ -85,7 +85,7 @@ if [[ -t 0 && $# -eq 0 ]]; then
 fi
 echo "${@:-$(</dev/stdin)}" | while read line; do
     if [ -n "$test" ]; then
-        Test "$line" 
+        test "$line" 
     else
         main "$line"
     fi
