@@ -1,11 +1,15 @@
 #!/bin/bash
 #Limit character length of Description, its causing Parsley to dump out
-sudo -v
-LOG(){
-    echo "[$(date +%F\ %T)] ($(basename "$0"):$$) $@" >> /var/log/ingest.log;
-    logger -i "$(basename $0) - $@";
-}
+if [[ "$EUID" != 0 ]]; then sudo -v; fi
 scriptPID=$$
+scriptPath="$(dirname "$0")"
+scriptName="$(basename "$0")"
+log(){ 
+    echo "[$(date +%F\ %T)] $(whoami) ($scriptPID) $scriptName - $@" >>/var/log/ingest.log
+    echo "$@" >&2
+    logger -i "$scriptName - $@"
+}
+
 file="$@"
 tvDB_apiKey="71491072D412D6F5"
 [[ $(uname) == "Darwin" ]] && xpath="xpath" || xpath="xpath -q -e" 
@@ -138,9 +142,9 @@ collectData(){
     seriesURL="$mirror/api/$tvDB_apiKey/series/$seriesID"
     seriesXML="$tmp/$search-S$S.xml"
     if [[ $seriesID == "" ]]; then
-        LOG "$file is missing a seriesID from $mirror/api/GetSeries.php?seriesname=$search"; exit 1;
+        log "$file is missing a seriesID from $mirror/api/GetSeries.php?seriesname=$search"; exit 1;
     fi
-    LOG Gathering Data for $file from $seriesURL
+    log Gathering Data for $file from $seriesURL
 
     [ !	-e "$seriesXML" ] && curl -Ls "$seriesURL/en.xml" | substituteISO88591 > "$seriesXML" || :
     #
@@ -164,7 +168,7 @@ collectData(){
     bannerXML="$tmp/$search-banner.xml"
     [ !	-e "$bannerXML" ] && curl -Ls "$seriesURL/banners.xml" > "$bannerXML" || :
     #
-    LOG Downloading poster image for $file
+    log Downloading poster image for $file
     posterFile="$tmp/$search-S$S.jpg"
     if [ ! -e "$posterFile" ]; then
         posterID=1
@@ -188,7 +192,7 @@ collectData(){
             [[ $imgIntegrityTest -gt 100 ]] && resizeImage "$posterFile" || :
         fi
         [ ! -e "$posterFile" ] && \
-            LOG "Could not find $posterFile" || :
+            log "Could not find $posterFile" || :
     fi
     tagsXML="$tmp/$search-S${S}E${E}_tags.xml"
     if [ ! -e $tagsXML ]; then
@@ -226,7 +230,7 @@ main(){
 
     [[ removeTags -eq 1 ]] && $tags -r AacCdDgGHilmMnNoPsStTywR "$file" || :
     #
-    LOG Writing TV Tags to $file
+    log Writing TV Tags to $file
     $AtomicParsley "$file"\
         --title "$episode"\
         --artist "$series"\
@@ -279,6 +283,6 @@ echo "${@:-$(</dev/stdin)}" | while read line; do
             main
         fi
     else
-        LOG "No File to add TV Tags to"
+        log "No File to add TV Tags to"
     fi
 done

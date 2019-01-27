@@ -192,8 +192,13 @@ sort_media(){
         e="$( leading_zero "${BASH_REMATCH[4]}" )"
         name="$title - S${s}E${e}"
         output="$(dirname "$input")/$name.$ext"
-        mv -f "$input" "$output"
-        log Renamed "$input" to "$output"
+        if [[ "$input" != "$output" ]]; then
+            mv -f "$input" "$output"
+            log "Renamed $input to $output"
+        else
+            log "Already named correctly: $output"
+        fi
+
         echo "$output"
         return 0
     #Rename Movies
@@ -211,21 +216,6 @@ sort_media(){
     echo $input
     return 2
 }
-move_tv(){
-    storage="$1"
-    file="$(basename "$2")"
-    if [[ "$file" =~ (^.+)\ \-\ S([0-9][0-9])E([0-9][0-9]).*$ ]]; then
-        path="$storage/${BASH_REMATCH[1]}/Season ${BASH_REMATCH[2]#0*}"
-        if [ ! -d "$path" ]; then
-            mkdir -p "$path"
-            chmod 0777 "$path/.."
-        fi
-        chmod -R 0777 "$2"
-        log "Moving $2 to $path"
-        log $(cp -vf "$2" "$path" 2>&1 && rm "$2")
-        [ $? -eq 0 ] && echo $path/$file || exit 1
-    fi
-}
 main(){
     sudo -v
     inputFile="$@"
@@ -237,18 +227,24 @@ main(){
         log "Non Media file: $inputFile"
         exit 1
     fi
-    log "Moving to $tempFile"
-    mv -f "$mediaFile" "$tempFile"
+    if [[ "$mediaFile" != "$tempFile" ]]; then
+        log "Moving to $tempFile"
+        mv -f "$mediaFile" "$tempFile"
+    fi
     mediaFile="$tempFile"
     #If the inputFile is a dir, remove it since we moved media to /tmp
     [[ -d "$inputFile" ]] && rm -r "$inputFile" || :
-
+    log "1) --- Converting Media ---"
     mediaFile="$(convert_media "$mediaFile")"
+    log "2) --- Sorting File---"
     mediaFile="$(sort_media "$mediaFile")"
     mediaType=$?
     if [[ $mediaType == 0 ]]; then #its TV
-        mediaFile="$(tag_tv "$mediaFile")"
-        mediaFile="$(move_tv "$tvPath" "$mediaFile")"
+        log "3) --- Tagging Mp4 ---"
+        mediaFile="$(addTVTags "$mediaFile")"
+        log "4) --- Moving to Media Storage---"
+        mediaFile="$(moveTV "$mediaFile")"
+        log "5) --- Adding to Database ---" 
         $scriptPath/plexScan
         return
     fi
